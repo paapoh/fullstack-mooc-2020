@@ -1,88 +1,160 @@
-import React, { useState, useEffect } from 'react'
-import Persons from './components/Persons'
-import Filter from './components/Filter'
-import PersonForm from './components/PersonForm'
-import personService from './services/PersonService'
+import React, {useState, useEffect} from 'react'
+import personService from './services/persons'
+
+const Filter = ({newFilter, handleFilterChange}) => (
+  <div>
+      filter shown with: <input
+          value={newFilter}
+          onChange={handleFilterChange}
+  />
+  </div>
+)
+
+const Persons = ({persons, newFilter, setPersons, handleAddedTime}) => {
+  const personsToShow = 
+  persons.filter(person => person.name.toLowerCase()
+  .includes(newFilter.
+    toLowerCase()
+    )
+  )
+
+  const handleDelete = (person) => {
+    if(window.confirm(`Poistetaanko käyttäjä ${person.name}`)){
+      personService
+        .del(person.id)
+        .then(response => {
+          setPersons(persons.filter(person2 => person2.id !== person.id))
+          handleAddedTime(`Removed ${person.name}`)
+        })
+    }
+  }
+
+  return(
+      <div>
+          {personsToShow.map(person => 
+            <p key={person.name}> {person.name} {person.number} 
+              <button onClick={() => handleDelete(person)}>delete</button>
+            </p>
+          )}
+      </div>
+  )
+}
+
+const PersonForm = ({addPerson, newName, handleNameChange, newNumber, handleNumberChange}) => (
+  <form onSubmit={addPerson}>
+      <div>
+          name: <input 
+              value={newName}
+              onChange={handleNameChange}
+          />
+      </div>
+      <div>
+          number: <input 
+              value={newNumber}
+              onChange={handleNumberChange}
+          />
+      </div>
+      <div>
+          <button type="submit" onClick={addPerson}>add</button>
+      </div>
+  </form>
+)
+
+const Notification = ({ message, style}) => {
+  if (message === null) {
+    return null
+  }
+
+  return (
+    <div className={style}>
+      {message}
+    </div>
+  )
+}
 
 const App = () => {
-  const [persons, setPersons] = useState([])
+  const [ persons, setPersons] = useState([]) 
   const [ newName, setNewName ] = useState('')
   const [ newNumber, setNewNumber ] = useState('')
   const [ newFilter, setNewFilter ] = useState('')
+  const [ addedMessage, setAddedMessage] = useState(null)
+  const [ alertColor, setAlertColor ] = useState('alertGreen')
 
   useEffect(() => {
     personService
       .getAll()
-      .then(response => setPersons(response))
-  }, []);
-
+      .then(response => {
+        setPersons(response.data)
+    })
+  }, [])
 
   const handleNameChange = (event) => {
     setNewName(event.target.value)
   }
+
   const handleNumberChange = (event) => {
     setNewNumber(event.target.value)
   }
+
   const handleFilterChange = (event) => {
     setNewFilter(event.target.value)
   }
 
-  const addName = (event) => {
+  const handleAddedTime = (message) => {
+    setAddedMessage(message)
+    setTimeout(() => {
+      setAddedMessage(null)
+      setAlertColor('alertGreen')
+    }, 3000)
+  }
+
+  const addPerson = (event) => {
     event.preventDefault()
-    const nameObject = {
+    const personObject = {
       name: newName,
-      number: newNumber
+      number: newNumber,
     }
-    if(persons.map(person => person.name).includes(newName) && 
-      window.confirm(`${newName} is already added to phonebook, replace the old number with the new one?`))
-      {
-      const foundPerson = persons.find(person => person.name === newName)
-      const changedPerson = {...foundPerson, number: newNumber}
-      personService
-        .put(foundPerson.id, changedPerson)
-        .then(response => {
-          setPersons(persons.map(person => person.id !== foundPerson.id ? person : response))
-          setNewNumber('')
-          setNewName('')
-        })
+    if(persons.map(person => person.name).includes(newName)){
+      if(window.confirm(`${newName} is already added to phonebook, replace the old number with a new one?`)){
+        personService
+          .update(persons.find(person => person.name === newName).id, personObject)
+          .then(response => {
+            setPersons(persons.map(person => person.id !== response.data.id ? person : personObject))
+            handleAddedTime(`Changed ${response.data.name} number`)
+          })
+          .catch(reason => {
+            setAlertColor('alertRed')
+            handleAddedTime(`Information of ${newName} has already been removed from server`)
+          })
+      }
     }
     else{
-      personService
-        .create(nameObject)
-        .then(response => {
-          setPersons(persons.concat(response))
-          setNewName('')
-          setNewNumber('')
-        })
-    }
-  }
-
-  const deleteOnClick = (id) => {
     personService
-      .remove(id)
-      .then( response => {
-        setPersons(persons.filter(person => person.id !== id))
-        console.log(response)
+      .create(personObject)
+      .then(response => {
+        setPersons(persons.concat(response.data))
+        handleAddedTime(`Added ${response.data.name}`)
       })
+    }
+    setNewName('')
+    setNewNumber('')
   }
-
-  const numbersToShow = persons.filter(person => 
-    person.name.toLowerCase().includes(newFilter.toLowerCase())
-  )
 
   return (
     <div>
       <h2>Phonebook</h2>
-      <Filter newFilter={newFilter} handle={handleFilterChange} />
-      <h2>add new person</h2>
-      <PersonForm 
+      <Notification message={addedMessage} style={alertColor}/>
+      <Filter newFilter={newFilter} handleFilterChange={handleFilterChange}/>
+      <h2>add a new</h2>
+      <PersonForm
         newName={newName}
-        handleNameChange={handleNameChange}
         newNumber={newNumber}
-        handleNumberChange={handleNumberChange} 
-        addName={addName}/>
+        handleNameChange={handleNameChange}
+        handleNumberChange={handleNumberChange}
+        addPerson={addPerson}
+      />
       <h2>Numbers</h2>
-      <Persons persons={numbersToShow} deleteOnClick={deleteOnClick} />
+      <Persons persons={persons} newFilter={newFilter} setPersons={setPersons} handleAddedTime={handleAddedTime}/>
     </div>
   )
 

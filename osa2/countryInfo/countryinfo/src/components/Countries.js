@@ -1,5 +1,4 @@
-import React, {useState, useEffect} from 'react';
-import axios from 'axios'
+import React from 'react';
 
 
 const ListedCountries = ({ country, setFilter}) => (
@@ -14,6 +13,7 @@ const ShowOneCountry = ({ countries }) => {
     const api_key = process.env.REACT_APP_API_KEY
     const country = countries[0]
     const languages = country.languages.map(lang => <li key={lang.name}>{lang.name}<br/></li>)
+
     return(
       <div>
         <h1>{country.name}</h1>
